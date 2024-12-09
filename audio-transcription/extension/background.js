@@ -5,7 +5,11 @@ const state = {
     transcriptChunks: new Map(),
     reconnectAttempts: 0,
     MAX_RECONNECT_ATTEMPTS: 5,
-    activeTabId: null
+    activeTabId: null,
+    currentTranscript: '',
+    recordingStream: null,
+    audioContext: null,
+    mediaRecorder: null
 };
 
 // Message type constants
@@ -16,6 +20,11 @@ const MessageTypes = {
     ERROR: 'error',
     STATUS: 'status'
 };
+
+// Add this at the top of your background.js
+if (!chrome.tabCapture) {
+    console.error('tabCapture API not available');
+}
 
 // Define handleWebSocketMessage function first since it's used in initializeWebSocket
 function handleWebSocketMessage(event) {
@@ -166,6 +175,13 @@ async function cleanup() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Received message:', message);
     
+    // Handle windowLoaded message type
+    if (message.type === 'windowLoaded') {
+        sendResponse({ state: getPublicState() });
+        return true;
+    }
+    
+    // Handle action-based messages
     const handleMessage = async () => {
         try {
             switch (message.action) {
@@ -182,11 +198,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return await cleanup();
                     
                 case 'getState':
-                    return {
-                        isRecording: state.isRecording,
-                        transcriptChunks: Array.from(state.transcriptChunks.entries())
-                    };
+                    return getPublicState();
                     
+                case 'startRecording':
+                    state.isRecording = true;
+                    state.activeTabId = message.tabId;
+                    updateState(state);
+                    return { success: true };
+                
+                case 'startCapture':
+                    if (!chrome.tabCapture) {
+                        sendResponse({ error: 'tabCapture API not available' });
+                        return true;
+                    }
+
+                    chrome.tabCapture.getMediaStreamId(
+                        { targetTabId: message.tabId },
+                        (streamId) => {
+                            if (chrome.runtime.lastError) {
+                                sendResponse({ error: chrome.runtime.lastError.message });
+                                return;
+                            }
+                            sendResponse({ streamId });
+                        }
+                    );
+                    return true;
+                
                 default:
                     throw new Error(`Unknown action: ${message.action}`);
             }
@@ -217,12 +254,50 @@ self.addEventListener('activate', (event) => {
 
 console.log('Service Worker initialized');
 
-chrome.action.onClicked.addListener(() => {
-    chrome.windows.create({
-        url: 'window.html',
-        type: 'popup',
-        width: 400,
-        height: 600,
-        focused: true
-    });
+let recordingWindow = null;
+
+chrome.action.onClicked.addListener(async () => {
+    if (recordingWindow) {
+        // Focus existing window
+        await chrome.windows.update(recordingWindow.id, { focused: true });
+    } else {
+        // Create new window
+        recordingWindow = await chrome.windows.create({
+            url: 'window.html',
+            type: 'popup',
+            width: 400,
+            height: 600,
+            focused: true
+        });
+
+        // Handle window close
+        chrome.windows.onRemoved.addListener((windowId) => {
+            if (recordingWindow && windowId === recordingWindow.id) {
+                recordingWindow = null;
+            }
+        });
+    }
 });
+
+// Add to your existing state management
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'windowLoaded') {
+        // Sync state with newly opened window
+        sendResponse({ state: state });
+    }
+});
+
+// Add new function to handle state updates
+function updateState(updates) {
+    Object.assign(state, updates);
+    // Notify all extension views of state change
+    chrome.runtime.sendMessage({ type: 'stateUpdate', state: getPublicState() });
+}
+
+function getPublicState() {
+    return {
+        isRecording: state.isRecording,
+        currentTranscript: state.currentTranscript,
+        activeTabId: state.activeTabId
+    };
+}

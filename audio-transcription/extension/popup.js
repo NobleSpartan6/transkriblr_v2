@@ -3,6 +3,22 @@ let audioContext = null;
 let stream = null;
 let mediaRecorder = null;
 let transcriptText = '';
+let backgroundState = null;
+let isClosing = false;
+
+// Initialize global state at the top level
+const state = {
+    isRecording: false,
+    ws: null,
+    transcriptChunks: new Map(),
+    reconnectAttempts: 0,
+    MAX_RECONNECT_ATTEMPTS: 5,
+    activeTabId: null,
+    currentTranscript: '',
+    recordingStream: null,
+    audioContext: null,
+    mediaRecorder: null
+};
 
 async function loadTabs() {
     const tabs = await chrome.tabs.query({
@@ -88,42 +104,45 @@ async function getTabAudio() {
     }
 
     try {
-        // Get tab info first
         const tab = await chrome.tabs.get(selectedTabId);
         
-        // Check if it's a chrome:// page
         if (tab.url.startsWith('chrome://')) {
             throw new Error('Chrome system pages cannot be captured');
         }
 
-        // Inject a content script to ensure activeTab permission
-        await chrome.scripting.executeScript({
-            target: { tabId: selectedTabId },
-            function: () => {
-                // This script does nothing but ensures we have permission
-                return true;
+        // Request tab capture permission
+        const streamId = await new Promise((resolve, reject) => {
+            chrome.tabCapture.getMediaStreamId(
+                { targetTabId: selectedTabId },
+                (streamId) => {
+                    if (chrome.runtime.lastError) {
+                        reject(new Error(chrome.runtime.lastError.message));
+                        return;
+                    }
+                    resolve(streamId);
+                }
+            );
+        });
+
+        // Make tab active before capturing
+        await chrome.tabs.update(selectedTabId, { active: true });
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Use the stream ID to get the audio stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                mandatory: {
+                    chromeMediaSource: 'tab',
+                    chromeMediaSourceId: streamId
+                }
             }
         });
 
-        // Now capture the audio
-        return new Promise((resolve, reject) => {
-            chrome.tabCapture.capture({
-                audio: true,
-                video: false,
-                audioConstraints: {
-                    mandatory: {
-                        chromeMediaSource: 'tab'
-                    }
-                }
-            }, stream => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-                resolve(stream);
-            });
-        });
+        state.activeTabId = selectedTabId;
+        return stream;
+
     } catch (error) {
+        console.error('Tab capture error:', error);
         throw new Error(`Failed to capture tab audio: ${error.message}`);
     }
 }
@@ -154,6 +173,8 @@ function downloadTranscript() {
 }
 
 async function cleanup() {
+    if (isClosing) return;
+    
     if (audioContext) {
         await audioContext.close();
         audioContext = null;
@@ -170,7 +191,38 @@ async function cleanup() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function syncWithBackgroundState() {
+    const state = await chrome.runtime.sendMessage({ action: 'getState' });
+    if (state.isRecording) {
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        if (state.currentTranscript) {
+            updateTranscript(state.currentTranscript);
+        }
+    }
+}
+
+// Add message listener for state updates
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'stateUpdate') {
+        backgroundState = message.state;
+        // Update UI based on new state
+        if (backgroundState.currentTranscript) {
+            updateTranscript(backgroundState.currentTranscript);
+        }
+    }
+});
+
+// Add window close handler
+window.addEventListener('unload', () => {
+    isClosing = true;
+    if (!document.getElementById('stopBtn').disabled) {
+        cleanup();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await syncWithBackgroundState();
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -328,4 +380,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     downloadBtn.addEventListener('click', downloadTranscript);
+
+    // Add this after your existing event listeners in DOMContentLoaded
+    window.addEventListener('focus', async () => {
+        if (state.isRecording && state.activeTabId) {
+            // Restore the active tab when popup regains focus
+            await chrome.tabs.update(state.activeTabId, { active: true });
+        }
+        
+        // Refresh the tabs list
+        await loadTabs();
+        
+        // Sync with background state
+        await syncWithBackgroundState();
+    });
 });

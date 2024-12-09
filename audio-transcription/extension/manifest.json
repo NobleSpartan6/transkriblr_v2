@@ -1,24 +1,28 @@
 {
   "manifest_version": 3,
-  "name": "Tab Audio Transcriber",
+  "name": "Audio Transcription Pro",
   "version": "1.0",
   "description": "Captures and transcribes audio from browser tabs using AssemblyAI",
   "permissions": [
     "tabCapture",
-    "activeTab",
-    "tabs",
-    "scripting"
+    "tabs"
   ],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content-script.js"]
+  }],
   "host_permissions": [
-    "https://api.assemblyai.com/*",
-    "https://api.groq.com/*",
-    "*://*/*"
+    "<all_urls>"
   ],
   "action": {
-    "default_popup": "window.html"
+    "default_popup": ""
   },
   "background": {
     "service_worker": "background.js",
     "type": "module"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["content.js"],
+    "matches": ["<all_urls>"]
+  }]
 }

@@ -4,11 +4,16 @@
     <meta charset="UTF-8">
     <style>
         body {
+            margin: 0;
+            padding: 16px;
             width: 400px;
             min-height: 500px;
-            padding: 16px;
             font-family: system-ui, -apple-system, sans-serif;
             user-select: none;
+            -webkit-app-region: drag;
+        }
+        button, select, input {
+            -webkit-app-region: no-drag;
         }
         button {
             width: 100%;
