@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Audio Transcriber",
+  "version": "1.0",
+  "description": "Captures and transcribes audio from browser tabs using AssemblyAI",
+  "permissions": [
+    "tabCapture",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://api.assemblyai.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 16px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        button {
+            width: 100%;
+            margin: 8px 0;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #cccccc;
+        }
+        #transcriptPreview {
+            margin-top: 12px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #status {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+            background: #f5f5f5;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <button id="downloadBtn" class="hidden">Download Transcript</button>
+    <div id="status">Ready to record</div>
+    <div id="transcriptPreview"></div>
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
