@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <style>
         body {
-            width: 300px;
+            width: 400px;
+            min-height: 500px;
             padding: 16px;
             font-family: system-ui, -apple-system, sans-serif;
+            user-select: none;
         }
         button {
             width: 100%;
@@ -21,13 +23,28 @@
         button:disabled {
             background: #cccccc;
         }
-        #transcriptPreview {
+        .tab-selector {
+            margin-bottom: 16px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .summarize-btn {
+            background: #9333EA;
+        }
+        #transcriptPreview, #summaryPreview {
             margin-top: 12px;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             max-height: 200px;
             overflow-y: auto;
+        }
+        #summaryPreview {
+            background: #f8f4ff;
         }
         #status {
             margin: 8px 0;
@@ -38,14 +55,29 @@
         .hidden {
             display: none;
         }
+        .section-title {
+            font-weight: bold;
+            margin-top: 16px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <button id="startBtn">Start Recording</button>
+    <div class="tab-selector">
+        <select id="tabSelect">
+            <option value="">Select a tab to record</option>
+        </select>
+    </div>
+    <button id="startBtn" disabled>Start Recording</button>
     <button id="stopBtn" disabled>Stop Recording</button>
     <button id="downloadBtn" class="hidden">Download Transcript</button>
-    <div id="status">Ready to record</div>
+    <div id="status">Select a tab to begin</div>
+    <div class="section-title">Transcript:</div>
     <div id="transcriptPreview"></div>
+    <button id="summarizeBtn" class="summarize-btn hidden">Summarize Text</button>
+    <div class="section-title">Summary:</div>
+    <div id="summaryPreview"></div>
+    <script src="window-handler.js"></script>
     <script src="config.js"></script>
     <script src="popup.js"></script>
 </body>

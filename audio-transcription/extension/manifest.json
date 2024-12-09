@@ -5,12 +5,20 @@
   "description": "Captures and transcribes audio from browser tabs using AssemblyAI",
   "permissions": [
     "tabCapture",
-    "activeTab"
+    "activeTab",
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
-    "https://api.assemblyai.com/*"
+    "https://api.assemblyai.com/*",
+    "https://api.groq.com/*",
+    "*://*/*"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "window.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   }
 }

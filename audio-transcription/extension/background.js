@@ -216,3 +216,13 @@ self.addEventListener('activate', (event) => {
 });
 
 console.log('Service Worker initialized');
+
+chrome.action.onClicked.addListener(() => {
+    chrome.windows.create({
+        url: 'window.html',
+        type: 'popup',
+        width: 400,
+        height: 600,
+        focused: true
+    });
+});
