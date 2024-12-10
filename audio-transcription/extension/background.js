@@ -158,17 +158,30 @@ async function processAudioChunk(audioData) {
 
 // Cleanup function
 async function cleanup() {
-    state.isRecording = false;
+    if (isClosing) return;
     
-    if (state.ws) {
-        if (state.ws.readyState === WebSocket.OPEN) {
-            state.ws.close(1000, 'Recording stopped by user');
+    if (audioContext) {
+        try {
+            // Get all audio nodes and disconnect them
+            const source = audioContext.createMediaStreamSource(stream);
+            source.disconnect(audioContext.destination);
+            source.disconnect();
+            await audioContext.close();
+            audioContext = null;
+        } catch (error) {
+            console.error('Error cleaning up audio context:', error);
         }
-        state.ws = null;
     }
     
-    state.reconnectAttempts = 0;
-    return { success: true };
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder = null;
+    }
 }
 
 // Message handling

@@ -271,10 +271,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             audioContext = new AudioContext();
             const source = audioContext.createMediaStreamSource(stream);
-            const destination = audioContext.createMediaStreamDestination();
-            source.connect(destination);
+            
+            // Create a destination for recording
+            const recordingDestination = audioContext.createMediaStreamDestination();
+            source.connect(recordingDestination);
+            
+            // Also connect to speakers for live playback
+            source.connect(audioContext.destination);
 
-            mediaRecorder = new MediaRecorder(destination.stream);
+            mediaRecorder = new MediaRecorder(recordingDestination.stream);
             let audioChunks = [];
 
             mediaRecorder.ondataavailable = (event) => {
